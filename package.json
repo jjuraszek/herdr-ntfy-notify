@@ -9,6 +9,8 @@
     "node": ">=18"
   },
   "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check:agents-core": "node scripts/check-agents-core.mjs",
     "toggle": "node toggle.mjs"
   },
   "keywords": [

@@ -14,3 +14,13 @@ command = ["node", "notify.mjs"]
 id = "toggle"
 title = "Toggle ntfy notify"
 command = ["node", "toggle.mjs"]
+
+[[actions]]
+id = "enable"
+title = "Enable ntfy notify"
+command = ["node", "toggle.mjs", "on"]
+
+[[actions]]
+id = "disable"
+title = "Disable ntfy notify"
+command = ["node", "toggle.mjs", "off"]

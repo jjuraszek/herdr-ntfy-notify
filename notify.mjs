@@ -19,7 +19,12 @@ if (!["done", "blocked"].includes(status)) {
   process.exit(0);
 }
 
-await sendNtfy(topic, context, event, status);
+try {
+  await sendNtfy(topic, context, event, status);
+} catch (error) {
+  console.error(`ntfy publish failed: ${error.message}`);
+  process.exit(0);
+}
 
 function readJsonEnv(name) {
   const raw = process.env[name];
@@ -109,10 +114,11 @@ async function sendNtfy(topic, context, event, status) {
     method: "POST",
     headers,
     body: contextLabel(context, event),
+    signal: AbortSignal.timeout(5000),
   });
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`ntfy publish failed: ${response.status} ${body}`);
+    throw new Error(`${response.status} ${body}`);
   }
 }

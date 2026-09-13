@@ -50,11 +50,14 @@ Work is tracked in GitHub issues on this repo - plain `gh issue` CLI, no templat
 
 | File | Role |
 |---|---|
-| `herdr-plugin.toml` | Plugin manifest: `pane.agent_status_changed` event hook + `toggle` action |
+| `herdr-plugin.toml` | Plugin manifest: `pane.agent_status_changed` event hook + `toggle` / `enable` / `disable` actions |
 | `notify.mjs` | Event handler; reads `HERDR_PLUGIN_EVENT_JSON` / `HERDR_PLUGIN_CONTEXT_JSON`, filters to `blocked`/`done`, POSTs to ntfy |
 | `lib.mjs` | dotenv loading, enabled-state file, terminal-title indicator |
-| `toggle.mjs` | `toggle` action implementation |
+| `toggle.mjs` | `toggle` / `enable` / `disable` action implementation (`on` / `off` / no arg) |
 | `.env.example` | Documented config template; users copy it to the plugin config dir |
+| `test/notify.test.mjs` | `node --test` suite: publishes against an in-process HTTP server, filter, exit codes, dotenv, toggle state |
+| `scripts/check-agents-core.mjs` | Guards the shared-core block in this file against `AGENTS.core.md`; `--fix` re-syncs |
+| `.github/workflows/test.yml` | CI: core check, `node --check`, tests on ubuntu + macos, Node 18 + 22 |
 
 ## Rules
 
@@ -68,20 +71,22 @@ Work is tracked in GitHub issues on this repo - plain `gh issue` CLI, no templat
 
 ## Testing
 
-No test suite yet - the repo is three small scripts. Verify a change with:
-
 ```sh
-node --check notify.mjs lib.mjs toggle.mjs        # syntax
-# live self-test against a throwaway topic (publish + filter + toggle):
-NTFY_TOPIC="selftest-$RANDOM" \
-HERDR_PLUGIN_EVENT_JSON='{"data":{"agent":"pi","display_agent":"Pi","agent_status":"blocked"}}' \
-HERDR_PLUGIN_CONTEXT_JSON='{"workspace_label":"ws","tab_label":"tab"}' \
-node notify.mjs
-NTFY_TOPIC=x HERDR_PLUGIN_EVENT_JSON='{"data":{"agent_status":"working"}}' node notify.mjs   # must exit silently
-node toggle.mjs off && node toggle.mjs on
+npm test                                            # node --test test/*.test.mjs - offline, in-process ntfy stub
+node scripts/check-agents-core.mjs                  # shared-core block in sync (--fix to rewrite)
+node --check notify.mjs lib.mjs toggle.mjs          # syntax
 ```
 
-End-to-end: `herdr plugin link /path/to/herdr-ntfy-notify`, flip a real agent to blocked, watch the phone. If a suite ever becomes warranted it goes in `test/` on `node --test`, like the pi-* siblings.
+Live check against the real server (publish + poll back):
+
+```sh
+T="selftest-$RANDOM"; NTFY_TOPIC="$T" \
+HERDR_PLUGIN_EVENT_JSON='{"data":{"agent":"pi","display_agent":"Pi","agent_status":"blocked"}}' \
+HERDR_PLUGIN_CONTEXT_JSON='{"workspace_label":"ws","tab_label":"tab"}' \
+node notify.mjs && curl -s "https://ntfy.sh/$T/json?poll=1"
+```
+
+End-to-end: `herdr plugin link /path/to/herdr-ntfy-notify`, flip a real agent to blocked, watch the phone. Tests spawn the scripts as child processes with `HERDR_NTFY_SET_TITLE=0` so they never call `herdr`; a new behavior gets a case in `test/notify.test.mjs`.
 
 ## Release
 
@@ -96,4 +101,4 @@ Manual: bump `herdr-plugin.toml` + `package.json`, promote the `CHANGELOG.md` se
 | Config keys | [`.env.example`](.env.example) |
 | Herdr plugin mechanics (hooks, events, config/state dirs) | https://herdr.dev/plugins |
 | ntfy publish API (headers, priority, auth) | https://docs.ntfy.sh/publish |
-| Change the shared core | edit [`AGENTS.core.md`](AGENTS.core.md), re-sync the marked block above |
+| Change the shared core | edit [`AGENTS.core.md`](AGENTS.core.md), run `node scripts/check-agents-core.mjs --fix` |
