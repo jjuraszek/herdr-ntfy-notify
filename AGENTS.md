@@ -52,18 +52,19 @@ Work is tracked in GitHub issues on this repo - plain `gh issue` CLI, no templat
 |---|---|
 | `herdr-plugin.toml` | Plugin manifest: `pane.agent_status_changed` event hook + `toggle` / `enable` / `disable` actions; all commands run via `/bin/sh run.sh` |
 | `run.sh` | POSIX sh launcher: locates `node` (mise shims, Homebrew, nvm) when `PATH` is bare (launchd/systemd), then execs the named script |
-| `notify.mjs` | Event handler; reads `HERDR_PLUGIN_EVENT_JSON` / `HERDR_PLUGIN_CONTEXT_JSON`, filters to `blocked`/`done`, POSTs to ntfy |
-| `lib.mjs` | dotenv loading, enabled-state file, terminal-title indicator |
-| `toggle.mjs` | `toggle` / `enable` / `disable` action implementation (`on` / `off` / no arg) |
+| `notify.mjs` | Event handler; reads `HERDR_PLUGIN_EVENT_JSON` / `HERDR_PLUGIN_CONTEXT_JSON`, filters to `blocked`/`done` on an armed `HERDR_TAB_ID`, POSTs to ntfy |
+| `lib.mjs` | dotenv loading, armed-tab state file (`armed.json`: `readArmed` / `writeArmed`), `herdr(args)` CLI spawn helper, `* ` prefix helpers |
+| `toggle.mjs` | `toggle` / `enable` / `disable` action implementation for the focused tab (`on` / `off` / no arg); prunes stale ids via `herdr tab list`, mirrors state with `herdr tab rename` |
 | `.env.example` | Documented config template; users copy it to the plugin config dir |
-| `test/notify.test.mjs` | `node --test` suite: publishes against an in-process HTTP server, filter, exit codes, dotenv, toggle state |
+| `test/notify.test.mjs`, `test/lib.test.mjs` | `node --test` suites: publishes against an in-process HTTP server, armed-tab filter, exit codes, dotenv, toggle state and label mirror via a fake `herdr` shim; direct unit tests for `lib.mjs` |
 | `scripts/check-agents-core.mjs` | Guards the shared-core block in this file against `AGENTS.core.md`; `--fix` re-syncs |
 | `.github/workflows/test.yml` | CI: core check, `node --check`, tests on ubuntu + macos, Node 18 + 22 |
 
 ## Rules
 
 - **Zero dependencies, plain Node ESM, Node >= 18 (global `fetch`).** No build step, no `node_modules` - a dependency must be argued for, not added.
-- **The event hook stays fast and never blocks Herdr**: filter on status early, exit 0 on anything unexpected (missing config, malformed event JSON), no retries, no waiting.
+- **The event hook stays fast and never blocks Herdr**: filter on status early, exit 0 on anything unexpected (missing config, malformed event JSON, unreadable state), no retries, no waiting, and never spawn `herdr` from the hook.
+- **State is `HERDR_PLUGIN_STATE_DIR/armed.json`, written only by `toggle.mjs`** (atomic tmp + rename). The `* ` tab-label prefix is a best-effort mirror of that file, never the source of truth.
 - **Never commit `.env`.** `NTFY_TOPIC` and `NTFY_TOKEN` are secrets; config lives in the Herdr plugin config dir (`herdr plugin config-dir jjuraszek.ntfy-notify`), not the repo.
 - **Env var naming:** `NTFY_*` for ntfy connection settings, `HERDR_NTFY_*` for plugin behavior toggles; document every key in `.env.example`.
 - **Message bodies stay generic** (`workspace - tab`, status in the title) - the ntfy topic is a shared secret on the public server, so no task content in pushes.
@@ -81,13 +82,14 @@ node --check notify.mjs lib.mjs toggle.mjs          # syntax
 Live check against the real server (publish + poll back):
 
 ```sh
-T="selftest-$RANDOM"; NTFY_TOPIC="$T" \
+T="selftest-$RANDOM"; S=$(mktemp -d); echo '{"tabs":["w1:t1"]}' > "$S/armed.json"
+NTFY_TOPIC="$T" HERDR_PLUGIN_STATE_DIR="$S" HERDR_TAB_ID=w1:t1 \
 HERDR_PLUGIN_EVENT_JSON='{"data":{"agent":"pi","display_agent":"Pi","agent_status":"blocked"}}' \
 HERDR_PLUGIN_CONTEXT_JSON='{"workspace_label":"ws","tab_label":"tab"}' \
 node notify.mjs && curl -s "https://ntfy.sh/$T/json?poll=1"
 ```
 
-End-to-end: `herdr plugin link /path/to/herdr-ntfy-notify`, flip a real agent to blocked, watch the phone. Tests spawn the scripts as child processes with `HERDR_NTFY_SET_TITLE=0` so they never call `herdr`; a new behavior gets a case in `test/notify.test.mjs`.
+End-to-end: `herdr plugin link /path/to/herdr-ntfy-notify`, arm a tab, flip its agent to blocked, watch the phone; a second, unarmed tab stays silent. Tests spawn the scripts as child processes with `HERDR_BIN_PATH` pointing at a fake `herdr` shell shim (logs argv, serves canned `tab list` JSON) so they never call the real CLI; a new behavior gets a case in `test/notify.test.mjs`.
 
 ## Release
 

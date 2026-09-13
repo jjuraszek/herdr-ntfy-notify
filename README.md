@@ -50,7 +50,7 @@ So sitting at the desk with the agent's pane focused produces no pushes; walking
 herdr plugin install jjuraszek/herdr-ntfy-notify
 ```
 
-Requires Herdr >= 0.7.0.
+Requires Herdr >= 0.9.0.
 
 Or, for development, link a local checkout:
 
@@ -71,7 +71,7 @@ Drop a `.env` there with one line (all keys in [.env.example](.env.example)):
 echo 'NTFY_TOPIC=herdr-x9q2k7-your-unguessable-topic' > "$(herdr plugin config-dir jjuraszek.ntfy-notify)/.env"
 ```
 
-Optional keys: `NTFY_SERVER` (default `https://ntfy.sh` - point at your self-hosted instance if you have one), `NTFY_TOKEN` (bearer token for servers with access control), `HERDR_NTFY_ENABLED` (defaults to on; set `0`/`off` to start disabled until you toggle).
+Optional keys: `NTFY_SERVER` (default `https://ntfy.sh` - point at your self-hosted instance if you have one), `NTFY_TOKEN` (bearer token for servers with access control).
 
 On the phone: install the ntfy app ([iOS](https://apps.apple.com/app/ntfy/id1625396347) / [Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy)) and subscribe to the same topic. Test the pipe end to end without waiting for an agent:
 
@@ -81,9 +81,11 @@ curl -H 'Title: test' -d 'hello from the workstation' https://ntfy.sh/<your-topi
 
 The plugin picks up `.env` on the next event - no restart, no relink.
 
-## Toggle
+## Arm a tab
 
-Three actions: `toggle` flips notifications on/off without unlinking the plugin, `enable` / `disable` set the state outright (deterministic from a phone where you cannot see the terminal). While enabled, the outer terminal title shows `ntfy on` (`HERDR_NTFY_SET_TITLE=0` disables that). Invoke from any shell - including a phone SSH session - or bind a key:
+Notifications are **off by default, per Herdr tab**. Arm the tab you are walking away from; every other tab stays silent. An armed tab shows a leading `* ` on its label in the tab bar - the only indicator.
+
+Three actions, all acting on the **focused tab**: `toggle` flips it, `enable` / `disable` set it outright (deterministic from a phone where you cannot see the tab bar). Bind a key or invoke from any shell, including a phone SSH session - the CLI form arms whichever tab is focused in the Herdr UI:
 
 ```sh
 herdr plugin action invoke jjuraszek.ntfy-notify.toggle
@@ -96,10 +98,14 @@ herdr plugin action invoke jjuraszek.ntfy-notify.disable   # heading into a meet
 key = "prefix+alt+n"
 type = "plugin_action"
 command = "jjuraszek.ntfy-notify.toggle"
-description = "toggle ntfy notify"
+description = "arm/disarm ntfy notify for this tab"
 ```
 
-The state lives in `HERDR_PLUGIN_STATE_DIR/enabled` and survives Herdr restarts.
+Arming is sticky: the tab keeps notifying on every `blocked`/`done` until you disarm it. State lives in `HERDR_PLUGIN_STATE_DIR/armed.json` (`{"tabs": ["w1:t1D"]}`) and survives Herdr restarts; ids of closed tabs are pruned on the next toggle of any tab. The label is a best-effort mirror of that state:
+
+- Renamed the tab and lost the `* `? The tab is still armed - run `enable` on it to restore the marker.
+- Arming a tab with an automatic label (`1`) pins it as the custom label `* 1`; after disarming it stays `1` and no longer follows Herdr renumbering (Herdr has no reset-to-automatic).
+- [pi-quiver](https://github.com/jjuraszek/pi-quiver) tab auto-naming backs off from a label it did not write, so arming freezes pi-quiver naming for that tab until the pi session restarts (follow-up: jjuraszek/pi-quiver#19).
 
 ## Remote access: where this fits
 
@@ -117,7 +123,7 @@ On the phone, `herdr agent attach <target>` fills the screen with one agent inst
 
 ## Troubleshooting
 
-- No push at all: `herdr plugin list` (installed and enabled?), `herdr plugin log list --plugin jjuraszek.ntfy-notify` (hook stderr: `missing NTFY_TOPIC`, `ntfy publish failed: ...`), then the curl test above.
+- No push at all: is the tab armed (`* ` on its label)? Then `herdr plugin list` (installed and enabled?), `herdr plugin log list --plugin jjuraszek.ntfy-notify` (hook stderr: `missing NTFY_TOPIC`, `ntfy publish failed: ...`), then the curl test above.
 - Pushes only for `done`, never `blocked`: `herdr agent explain <target>` shows how Herdr classified the pane; install the agent's integration for lifecycle-hook accuracy.
 - Nothing while you sit at the desk: expected - the focused pane goes `idle`, not `done`.
 - Plugin log shows `No such file or directory (os error 2)` on every hook: you're on a version before the `run.sh` launcher and Herdr's `PATH` is bare (launchd/systemd) - update the plugin.

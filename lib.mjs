@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,69 +50,63 @@ function loadDotEnvFile(path) {
   }
 }
 
-export function envFlag(name, fallback) {
-  const raw = process.env[name];
-  if (raw === undefined || raw.trim() === "") {
-    return fallback;
-  }
-  return !["0", "false", "no", "off"].includes(raw.trim().toLowerCase());
-}
+const PREFIX = "* ";
 
-export function modePath() {
+export function armedPath() {
   if (process.env.HERDR_PLUGIN_STATE_DIR) {
-    return join(process.env.HERDR_PLUGIN_STATE_DIR, "enabled");
+    return join(process.env.HERDR_PLUGIN_STATE_DIR, "armed.json");
   }
   const stateHome =
     process.env.XDG_STATE_HOME ||
     (process.env.HOME ? join(process.env.HOME, ".local", "state") : pluginRoot);
-  return join(stateHome, "herdr-ntfy-notify", "enabled");
+  return join(stateHome, "herdr-ntfy-notify", "armed.json");
 }
 
-export function modeEnabled() {
-  const path = modePath();
-  if (!existsSync(path)) {
-    return envFlag("HERDR_NTFY_ENABLED", true);
+// Any problem reading state means "nothing armed": the hook must stay silent.
+export function readArmed() {
+  try {
+    const tabs = JSON.parse(readFileSync(armedPath(), "utf8"))?.tabs;
+    if (!Array.isArray(tabs) || !tabs.every((id) => typeof id === "string")) {
+      return new Set();
+    }
+    return new Set(tabs);
+  } catch {
+    return new Set();
   }
-  const raw = readFileSync(path, "utf8").trim().toLowerCase();
-  return !["0", "false", "no", "off", "disabled"].includes(raw);
 }
 
-export function setMode(enabled) {
-  const path = modePath();
+export function writeArmed(tabs) {
+  const path = armedPath();
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, enabled ? "enabled\n" : "disabled\n", "utf8");
+  const tmp = `${path}.${process.pid}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify({ tabs: [...tabs].sort() })}\n`, "utf8");
+  renameSync(tmp, path);
 }
 
-export function setWindowTitleIndicator(enabled) {
-  if (!envFlag("HERDR_NTFY_SET_TITLE", true)) {
-    return;
-  }
-  const title = process.env.HERDR_NTFY_TITLE || "ntfy on";
-  const args = enabled
-    ? ["terminal", "title", "set", title]
-    : ["terminal", "title", "clear"];
-  const bins = [...new Set([process.env.HERDR_BIN_PATH, "herdr"].filter(Boolean))];
-  let lastError;
-  for (const herdrBin of bins) {
-    const result = spawnSync(herdrBin, args, { encoding: "utf8" });
-    if (result.error) {
-      lastError = result.error;
-      continue;
+export function herdr(args) {
+  try {
+    const bin = process.env.HERDR_BIN_PATH ?? "herdr";
+    const result = spawnSync(bin, args, { encoding: "utf8" });
+    let json = null;
+    try {
+      json = JSON.parse(result.stdout);
+    } catch {
+      json = null;
     }
-    if (result.status !== 0) {
-      const stderr = result.stderr?.trim();
-      console.error(`title command exited ${result.status}${stderr ? `: ${stderr}` : ""}`);
-      return;
-    }
-    const stdout = result.stdout?.trim();
-    if (stdout) {
-      console.error(`title command response: ${stdout}`);
-    }
-    return;
+    return { ok: !result.error && result.status === 0, json };
+  } catch {
+    return { ok: false, json: null };
   }
-  if (lastError) {
-    console.error(`title command failed to start: ${lastError.message}`);
-  }
+}
+
+export function stripPrefix(label) {
+  const text = String(label ?? "");
+  return text.startsWith(PREFIX) ? text.slice(PREFIX.length) : text;
+}
+
+export function addPrefix(label) {
+  const text = String(label ?? "");
+  return text.startsWith(PREFIX) ? text : PREFIX + text;
 }
 
 // Quoted values keep everything inside the quotes; unquoted values stop at

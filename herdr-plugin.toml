@@ -1,9 +1,9 @@
 id = "jjuraszek.ntfy-notify"
 name = "ntfy Notify"
-version = "0.1.0"
+version = "1.1.0"
 description = "Push a notification to your phone via ntfy when a Herdr agent goes blocked or done."
 author = "Jacek Juraszek"
-min_herdr_version = "0.7.0"
+min_herdr_version = "0.9.0"
 platforms = ["linux", "macos"]
 
 [[events]]
@@ -12,15 +12,15 @@ command = ["/bin/sh", "run.sh", "notify.mjs"]
 
 [[actions]]
 id = "toggle"
-title = "Toggle ntfy notify"
+title = "Toggle ntfy notifications for this tab"
 command = ["/bin/sh", "run.sh", "toggle.mjs"]
 
 [[actions]]
 id = "enable"
-title = "Enable ntfy notify"
+title = "Arm ntfy notifications for this tab"
 command = ["/bin/sh", "run.sh", "toggle.mjs", "on"]
 
 [[actions]]
 id = "disable"
-title = "Disable ntfy notify"
+title = "Disarm ntfy notifications for this tab"
 command = ["/bin/sh", "run.sh", "toggle.mjs", "off"]

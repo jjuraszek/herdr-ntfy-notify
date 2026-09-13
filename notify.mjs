@@ -1,4 +1,4 @@
-import { loadDotEnv, modeEnabled } from "./lib.mjs";
+import { loadDotEnv, readArmed, stripPrefix } from "./lib.mjs";
 
 // Anything unexpected exits 0: this hook must never surface as a Herdr failure.
 try {
@@ -9,22 +9,23 @@ try {
 process.exit(0);
 
 async function main() {
-  loadDotEnv();
-  if (!modeEnabled()) {
-    return;
-  }
-
-  const topic = process.env.NTFY_TOPIC?.trim();
-  if (!topic) {
-    console.error("missing NTFY_TOPIC");
-    return;
-  }
-
   const context = readJsonEnv("HERDR_PLUGIN_CONTEXT_JSON");
   const event = readJsonEnv("HERDR_PLUGIN_EVENT_JSON");
   const status = statusFromEvent(event) ?? statusFromContext(context);
 
   if (!["done", "blocked"].includes(status)) {
+    return;
+  }
+
+  const tabId = process.env.HERDR_TAB_ID?.trim();
+  if (!tabId || !readArmed().has(tabId)) {
+    return;
+  }
+
+  loadDotEnv();
+  const topic = process.env.NTFY_TOPIC?.trim();
+  if (!topic) {
+    console.error("missing NTFY_TOPIC");
     return;
   }
 
@@ -85,7 +86,7 @@ function agentLabel(context, event) {
 function contextLabel(context, event) {
   const workspace =
     context.workspace_label ?? event?.data?.workspace_id ?? context.workspace_id ?? "workspace";
-  const tab = namedTabLabel(context.tab_label);
+  const tab = namedTabLabel(stripPrefix(context.tab_label));
   return tab ? `${workspace} - ${tab}` : workspace;
 }
 
