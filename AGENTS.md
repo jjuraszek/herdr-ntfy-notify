@@ -50,7 +50,8 @@ Work is tracked in GitHub issues on this repo - plain `gh issue` CLI, no templat
 
 | File | Role |
 |---|---|
-| `herdr-plugin.toml` | Plugin manifest: `pane.agent_status_changed` event hook + `toggle` / `enable` / `disable` actions |
+| `herdr-plugin.toml` | Plugin manifest: `pane.agent_status_changed` event hook + `toggle` / `enable` / `disable` actions; all commands run via `/bin/sh run.sh` |
+| `run.sh` | POSIX sh launcher: locates `node` (mise shims, Homebrew, nvm) when `PATH` is bare (launchd/systemd), then execs the named script |
 | `notify.mjs` | Event handler; reads `HERDR_PLUGIN_EVENT_JSON` / `HERDR_PLUGIN_CONTEXT_JSON`, filters to `blocked`/`done`, POSTs to ntfy |
 | `lib.mjs` | dotenv loading, enabled-state file, terminal-title indicator |
 | `toggle.mjs` | `toggle` / `enable` / `disable` action implementation (`on` / `off` / no arg) |

@@ -120,6 +120,7 @@ On the phone, `herdr agent attach <target>` fills the screen with one agent inst
 - No push at all: `herdr plugin list` (installed and enabled?), `herdr plugin log list --plugin jjuraszek.ntfy-notify` (hook stderr: `missing NTFY_TOPIC`, `ntfy publish failed: ...`), then the curl test above.
 - Pushes only for `done`, never `blocked`: `herdr agent explain <target>` shows how Herdr classified the pane; install the agent's integration for lifecycle-hook accuracy.
 - Nothing while you sit at the desk: expected - the focused pane goes `idle`, not `done`.
+- Plugin log shows `No such file or directory (os error 2)` on every hook: you're on a version before the `run.sh` launcher and Herdr's `PATH` is bare (launchd/systemd) - update the plugin.
 - Agents frozen when you attach: the machine slept; check `caffeinate` is still running.
 
 ## Security note

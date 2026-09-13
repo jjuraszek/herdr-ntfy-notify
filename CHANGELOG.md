@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Plugin commands no longer depend on `PATH`: all manifest entries run via `/bin/sh run.sh`, which probes mise shims, Homebrew and nvm locations for a `node` binary when `command -v node` fails. Fixes hooks failing to spawn (`No such file or directory (os error 2)`) when Herdr runs under launchd/systemd with a bare `PATH`.
+
 - Hook never exits non-zero: one top-level boundary catches everything (failed or timed-out publish via 5 s `AbortSignal.timeout`, `null` event/context JSON, unreadable state file), logs one stderr line and exits 0, per the never-block-Herdr rule.
 - `.env` parser honors dotenv inline comments (`NTFY_TOPIC=abc # note`) and keeps `#` inside quoted values.
 - `enable` / `disable` actions next to `toggle` (`herdr plugin action invoke jjuraszek.ntfy-notify.disable`) - set the state outright without seeing the terminal title.

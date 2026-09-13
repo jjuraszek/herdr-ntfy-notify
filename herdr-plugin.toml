@@ -8,19 +8,19 @@ platforms = ["linux", "macos"]
 
 [[events]]
 on = "pane.agent_status_changed"
-command = ["node", "notify.mjs"]
+command = ["/bin/sh", "run.sh", "notify.mjs"]
 
 [[actions]]
 id = "toggle"
 title = "Toggle ntfy notify"
-command = ["node", "toggle.mjs"]
+command = ["/bin/sh", "run.sh", "toggle.mjs"]
 
 [[actions]]
 id = "enable"
 title = "Enable ntfy notify"
-command = ["node", "toggle.mjs", "on"]
+command = ["/bin/sh", "run.sh", "toggle.mjs", "on"]
 
 [[actions]]
 id = "disable"
 title = "Disable ntfy notify"
-command = ["node", "toggle.mjs", "off"]
+command = ["/bin/sh", "run.sh", "toggle.mjs", "off"]

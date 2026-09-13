@@ -101,6 +101,24 @@ test("working and idle are filtered without a request", async () => {
   });
 });
 
+test("run.sh reaches the script via sh and forwards args", async () => {
+  const { stderr } = await execFileAsync(
+    "/bin/sh",
+    [join(root, "run.sh"), "notify.mjs"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        PATH: process.env.PATH,
+        HERDR_NTFY_SET_TITLE: "0",
+        HERDR_PLUGIN_EVENT_JSON: event("blocked"),
+      },
+    },
+  );
+  // No NTFY_TOPIC: stderr proves run.sh located node and executed the script.
+  assert.match(stderr, /missing NTFY_TOPIC/);
+});
+
 test("malformed event, null context, unreadable state and missing topic exit 0", async () => {
   assert.equal(
     (await run("notify.mjs", [], { NTFY_TOPIC: "x", HERDR_PLUGIN_EVENT_JSON: "garbage" })).status,
