@@ -1,29 +1,38 @@
 import { loadDotEnv, modeEnabled } from "./lib.mjs";
 
-loadDotEnv();
-if (!modeEnabled()) {
-  process.exit(0);
-}
-
-const topic = process.env.NTFY_TOPIC?.trim();
-if (!topic) {
-  console.error("missing NTFY_TOPIC");
-  process.exit(0);
-}
-
-const context = readJsonEnv("HERDR_PLUGIN_CONTEXT_JSON");
-const event = readJsonEnv("HERDR_PLUGIN_EVENT_JSON");
-const status = statusFromEvent(event) ?? statusFromContext(context);
-
-if (!["done", "blocked"].includes(status)) {
-  process.exit(0);
-}
-
+// Anything unexpected exits 0: this hook must never surface as a Herdr failure.
 try {
-  await sendNtfy(topic, context, event, status);
+  await main();
 } catch (error) {
-  console.error(`ntfy publish failed: ${error.message}`);
-  process.exit(0);
+  console.error(`ntfy-notify: ${error.message}`);
+}
+process.exit(0);
+
+async function main() {
+  loadDotEnv();
+  if (!modeEnabled()) {
+    return;
+  }
+
+  const topic = process.env.NTFY_TOPIC?.trim();
+  if (!topic) {
+    console.error("missing NTFY_TOPIC");
+    return;
+  }
+
+  const context = readJsonEnv("HERDR_PLUGIN_CONTEXT_JSON");
+  const event = readJsonEnv("HERDR_PLUGIN_EVENT_JSON");
+  const status = statusFromEvent(event) ?? statusFromContext(context);
+
+  if (!["done", "blocked"].includes(status)) {
+    return;
+  }
+
+  try {
+    await sendNtfy(topic, context, event, status);
+  } catch (error) {
+    console.error(`ntfy publish failed: ${error.message}`);
+  }
 }
 
 function readJsonEnv(name) {
@@ -32,7 +41,8 @@ function readJsonEnv(name) {
     return {};
   }
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
   } catch (error) {
     console.error(`invalid ${name}: ${error.message}`);
     return {};

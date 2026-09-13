@@ -46,7 +46,7 @@ function loadDotEnvFile(path) {
     if (!key || process.env[key] !== undefined) {
       continue;
     }
-    process.env[key] = stripQuotes(value);
+    process.env[key] = parseValue(value);
   }
 }
 
@@ -115,12 +115,15 @@ export function setWindowTitleIndicator(enabled) {
   }
 }
 
-function stripQuotes(value) {
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    return value.slice(1, -1);
+// Quoted values keep everything inside the quotes; unquoted values stop at
+// the first whitespace-prefixed `#`, matching dotenv's inline comment rule.
+function parseValue(value) {
+  const quote = value[0];
+  if (quote === '"' || quote === "'") {
+    const end = value.indexOf(quote, 1);
+    if (end !== -1) {
+      return value.slice(1, end);
+    }
   }
-  return value;
+  return value.replace(/\s+#.*$/, "").trim();
 }

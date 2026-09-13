@@ -71,7 +71,7 @@ Drop a `.env` there with one line (all keys in [.env.example](.env.example)):
 echo 'NTFY_TOPIC=herdr-x9q2k7-your-unguessable-topic' > "$(herdr plugin config-dir jjuraszek.ntfy-notify)/.env"
 ```
 
-Optional keys: `NTFY_SERVER` (default `https://ntfy.sh` - point at your self-hosted instance if you have one), `NTFY_TOKEN` (bearer token for servers with access control), `HERDR_NTFY_ENABLED` (default on/off).
+Optional keys: `NTFY_SERVER` (default `https://ntfy.sh` - point at your self-hosted instance if you have one), `NTFY_TOKEN` (bearer token for servers with access control), `HERDR_NTFY_ENABLED` (defaults to on; set `0`/`off` to start disabled until you toggle).
 
 On the phone: install the ntfy app ([iOS](https://apps.apple.com/app/ntfy/id1625396347) / [Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy)) and subscribe to the same topic. Test the pipe end to end without waiting for an agent:
 
@@ -93,7 +93,7 @@ herdr plugin action invoke jjuraszek.ntfy-notify.disable   # heading into a meet
 ```toml
 # ~/.config/herdr/config.toml
 [[keys.command]]
-key = "prefix+shift+n"
+key = "prefix+alt+n"
 type = "plugin_action"
 command = "jjuraszek.ntfy-notify.toggle"
 description = "toggle ntfy notify"
