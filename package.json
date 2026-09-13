@@ -1,0 +1,21 @@
+{
+  "name": "herdr-ntfy-notify",
+  "version": "0.1.0",
+  "description": "Herdr plugin: push a notification to your phone via ntfy when an agent goes blocked or done.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "toggle": "node toggle.mjs"
+  },
+  "keywords": [
+    "herdr",
+    "herdr-plugin",
+    "ntfy",
+    "notifications",
+    "ai-agents"
+  ]
+}
