@@ -1,8 +1,3 @@
-# herdr-ntfy-notify
-
-A [Herdr](https://herdr.dev) plugin that pushes a notification to an [ntfy](https://ntfy.sh) topic when an agent's status changes to `blocked` or `done`. Installed with `herdr plugin install jjuraszek/herdr-ntfy-notify`; discoverable on the Herdr marketplace via the `herdr-plugin` repo topic.
-
-<!-- agents-core:begin v3-herdr - adapted from the pi-quiver/pi-cohort/pi-gauntlet/pi-condense shared core v3 (pi API -> Herdr/ntfy API, Linear -> GitHub issues). Edit AGENTS.core.md, then re-sync the block below. -->
 ## Ground Truth Before Reasoning
 
 User instructions outrank skill and AGENTS.md guidance; on conflict, follow the user. Configured gates (design approval, ship verification) still run; a user instruction that already names the gated action satisfies its confirmation.
@@ -43,57 +38,3 @@ ASCII punctuation everywhere (chat, comments, commits, docs, code): `-` not em-d
 ## Ticket convention
 
 Work is tracked in GitHub issues on this repo - plain `gh issue` CLI, no template gate. Creating or editing an issue happens on a user instruction naming it; status transitions and comments likewise.
-
-<!-- agents-core:end v3-herdr -->
-
-## Layout
-
-| File | Role |
-|---|---|
-| `herdr-plugin.toml` | Plugin manifest: `pane.agent_status_changed` event hook + `toggle` action |
-| `notify.mjs` | Event handler; reads `HERDR_PLUGIN_EVENT_JSON` / `HERDR_PLUGIN_CONTEXT_JSON`, filters to `blocked`/`done`, POSTs to ntfy |
-| `lib.mjs` | dotenv loading, enabled-state file, terminal-title indicator |
-| `toggle.mjs` | `toggle` action implementation |
-| `.env.example` | Documented config template; users copy it to the plugin config dir |
-
-## Rules
-
-- **Zero dependencies, plain Node ESM, Node >= 18 (global `fetch`).** No build step, no `node_modules` - a dependency must be argued for, not added.
-- **The event hook stays fast and never blocks Herdr**: filter on status early, exit 0 on anything unexpected (missing config, malformed event JSON), no retries, no waiting.
-- **Never commit `.env`.** `NTFY_TOPIC` and `NTFY_TOKEN` are secrets; config lives in the Herdr plugin config dir (`herdr plugin config-dir jjuraszek.ntfy-notify`), not the repo.
-- **Env var naming:** `NTFY_*` for ntfy connection settings, `HERDR_NTFY_*` for plugin behavior toggles; document every key in `.env.example`.
-- **Message bodies stay generic** (`workspace - tab`, status in the title) - the ntfy topic is a shared secret on the public server, so no task content in pushes.
-- **Version lives in two places** - `herdr-plugin.toml` and `package.json` - bump both in the same commit, plus a `CHANGELOG.md` entry.
-- **A user-visible change** updates `README.md` and `CHANGELOG.md` (`## Unreleased` or the version being cut) in the same commit.
-
-## Testing
-
-No test suite yet - the repo is three small scripts. Verify a change with:
-
-```sh
-node --check notify.mjs lib.mjs toggle.mjs        # syntax
-# live self-test against a throwaway topic (publish + filter + toggle):
-NTFY_TOPIC="selftest-$RANDOM" \
-HERDR_PLUGIN_EVENT_JSON='{"data":{"agent":"pi","display_agent":"Pi","agent_status":"blocked"}}' \
-HERDR_PLUGIN_CONTEXT_JSON='{"workspace_label":"ws","tab_label":"tab"}' \
-node notify.mjs
-NTFY_TOPIC=x HERDR_PLUGIN_EVENT_JSON='{"data":{"agent_status":"working"}}' node notify.mjs   # must exit silently
-node toggle.mjs off && node toggle.mjs on
-```
-
-End-to-end: `herdr plugin link /path/to/herdr-ntfy-notify`, flip a real agent to blocked, watch the phone. If a suite ever becomes warranted it goes in `test/` on `node --test`, like the pi-* siblings.
-
-## Release
-
-Manual: bump `herdr-plugin.toml` + `package.json`, promote the `CHANGELOG.md` section, commit `Release X.Y.Z`, tag `vX.Y.Z`, push with tags. Distribution is the GitHub repo itself (`herdr plugin install jjuraszek/herdr-ntfy-notify`); no npm publish.
-
-## Routing
-
-| Want to ... | Read |
-|---|---|
-| Install, configure, toggle, security model | [`README.md`](README.md) |
-| What changed across versions | [`CHANGELOG.md`](CHANGELOG.md) |
-| Config keys | [`.env.example`](.env.example) |
-| Herdr plugin mechanics (hooks, events, config/state dirs) | https://herdr.dev/plugins |
-| ntfy publish API (headers, priority, auth) | https://docs.ntfy.sh/publish |
-| Change the shared core | edit [`AGENTS.core.md`](AGENTS.core.md), re-sync the marked block above |
